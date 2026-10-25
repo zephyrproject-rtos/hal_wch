@@ -916,13 +916,13 @@ extern "C" {
 #endif
 
 #if defined(CH571_CH573) || defined(CH582_CH583) // 582/3 doesn't have _SET
-#define GPIO_SetBits(pin)             (*(&R32_PA_OUT + OFFSET_FOR_GPIOB(pin)) |= (pin & ~PB))
+#define GPIO_SetBits(pin)             (*(&R32_PA_OUT + OFFSET_FOR_GPIOB(pin)) |= (1<<(pin & ~PB)))
 #else
-#define GPIO_SetBits(pin)             (*(&R32_PA_SET + OFFSET_FOR_GPIOB(pin)) =  (pin & ~PB))
+#define GPIO_SetBits(pin)             (*(&R32_PA_SET + OFFSET_FOR_GPIOB(pin)) =  (1<<(pin & ~PB)))
 #endif
-#define GPIO_ResetBits(pin)           (*(&R32_PA_CLR + OFFSET_FOR_GPIOB(pin)) =  (pin & ~PB))
-#define GPIO_InverseBits(pin)         (*(&R32_PA_OUT + OFFSET_FOR_GPIOB(pin)) ^= (pin & ~PB))
-#define GPIO_ReadPortPin(pin)         (*(&R32_PA_PIN + OFFSET_FOR_GPIOB(pin)) &  (pin & ~PB))
+#define GPIO_ResetBits(pin)           (*(&R32_PA_CLR + OFFSET_FOR_GPIOB(pin)) =  (1<<(pin & ~PB)))
+#define GPIO_InverseBits(pin)         (*(&R32_PA_OUT + OFFSET_FOR_GPIOB(pin)) ^= (1<<(pin & ~PB)))
+#define GPIO_ReadPortPin(pin)         (*(&R32_PA_PIN + OFFSET_FOR_GPIOB(pin)) &  (1<<(pin & ~PB)))
 #define funDigitalRead(pin)           !!GPIO_ReadPortPin(pin)
 #define funDigitalWrite( pin, value ) do{ if((value)==FUN_HIGH){GPIO_SetBits(pin);} else if((value)==FUN_LOW){GPIO_ResetBits(pin);} }while(0)
 #define funGpioInitAll()              // funGpioInitAll() does not do anything on ch5xx, put here for consistency
@@ -931,27 +931,27 @@ RV_STATIC_INLINE void funPinMode(u32 pin, GPIOModeTypeDef mode)
 {
 	switch(mode) {
 	case GPIO_ModeIN_Floating:
-		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) &= ~(pin & ~PB);
-		*(&R32_PA_PU + OFFSET_FOR_GPIOB(pin))     &= ~(pin & ~PB);
-		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    &= ~(pin & ~PB);
+		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) &= ~(1<<(pin & ~PB));
+		*(&R32_PA_PU + OFFSET_FOR_GPIOB(pin))     &= ~(1<<(pin & ~PB));
+		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    &= ~(1<<(pin & ~PB));
 		break;
 	case GPIO_ModeIN_PU:
-		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) &= ~(pin & ~PB);
-		*(&R32_PA_PU + OFFSET_FOR_GPIOB(pin))     |= (pin & ~PB);
-		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    &= ~(pin & ~PB);
+		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) &= ~(1<<(pin & ~PB));
+		*(&R32_PA_PU + OFFSET_FOR_GPIOB(pin))     |=  (1<<(pin & ~PB));
+		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    &= ~(1<<(pin & ~PB));
 		break;
 	case GPIO_ModeIN_PD:
-		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) |= (pin & ~PB);
-		*(&R32_PA_PU + OFFSET_FOR_GPIOB(pin))     &= ~(pin & ~PB);
-		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    &= ~(pin & ~PB);
+		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) |=  (1<<(pin & ~PB));
+		*(&R32_PA_PU + OFFSET_FOR_GPIOB(pin))     &= ~(1<<(pin & ~PB));
+		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    &= ~(1<<(pin & ~PB));
 		break;
 	case GPIO_ModeOut_PP_5mA:
-		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) &= ~(pin & ~PB);
-		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    |= (pin & ~PB);
+		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) &= ~(1<<(pin & ~PB));
+		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    |=  (1<<(pin & ~PB));
 		break;
 	case GPIO_ModeOut_PP_20mA:
-		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) |= (pin & ~PB);
-		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    |= (pin & ~PB);
+		*(&R32_PA_PD_DRV + OFFSET_FOR_GPIOB(pin)) |= (1<<(pin & ~PB));
+		*(&R32_PA_DIR + OFFSET_FOR_GPIOB(pin))    |= (1<<(pin & ~PB));
 		break;
 	}
 }
@@ -968,14 +968,14 @@ RV_STATIC_INLINE void funPinMode(u32 pin, GPIOModeTypeDef mode)
 #define funDigitalWrite( pin, value ) do{ GpioOf( pin )->BSHR = 1<<((!(value))*16 + ((pin) & 0xf)); }while(0)
 
 #if defined(CH32X03x)
-#define funGpioInitAll() { RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC ); }
-#define funPinMode( pin, mode ) { *((&GpioOf(pin)->CFGLR)+((pin&0x8)>>3)) = ( (*((&GpioOf(pin)->CFGLR)+((pin&0x8)>>3))) & (~(0xf<<(4*((pin)&0x7))))) | ((mode)<<(4*((pin)&0x7))); }
+#define funGpioInitAll() do{ RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC ); }while(0)
+#define funPinMode( pin, mode ) do{ *((&GpioOf(pin)->CFGLR)+((pin&0x8)>>3)) = ( (*((&GpioOf(pin)->CFGLR)+((pin&0x8)>>3))) & (~(0xf<<(4*((pin)&0x7))))) | ((mode)<<(4*((pin)&0x7))); }while(0)
 #elif defined(CH32V10x) || defined(CH32V20x) || defined(CH32V30x) || defined(CH32L103)
-#define funGpioInitAll() { RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD | RCC_APB2Periph_GPIOE ); }
-#define funPinMode( pin, mode ) { *((&GpioOf(pin)->CFGLR)+((pin&0x8)>>3)) = ( (*((&GpioOf(pin)->CFGLR)+((pin&0x8)>>3))) & (~(0xf<<(4*((pin)&0x7))))) | ((mode)<<(4*((pin)&0x7))); }
-#define funGpioInitB() { RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOB ); }
+#define funGpioInitAll() do{ RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD | RCC_APB2Periph_GPIOE ); }while(0)
+#define funPinMode( pin, mode ) do{ *((&GpioOf(pin)->CFGLR)+((pin&0x8)>>3)) = ( (*((&GpioOf(pin)->CFGLR)+((pin&0x8)>>3))) & (~(0xf<<(4*((pin)&0x7))))) | ((mode)<<(4*((pin)&0x7))); }while(0)
+#define funGpioInitB() do{ RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOB ); }while(0)
 #elif defined(CH32H41x)
-#define funGpioInitAll() { RCC->HB2PCENR |= ( RCC_HB2Periph_AFIO | RCC_HB2Periph_GPIOA | RCC_HB2Periph_GPIOB | RCC_HB2Periph_GPIOC | RCC_HB2Periph_GPIOD | RCC_HB2Periph_GPIOE | RCC_HB2Periph_GPIOF ); }
+#define funGpioInitAll() do{ RCC->HB2PCENR |= ( RCC_HB2Periph_AFIO | RCC_HB2Periph_GPIOA | RCC_HB2Periph_GPIOB | RCC_HB2Periph_GPIOC | RCC_HB2Periph_GPIOD | RCC_HB2Periph_GPIOE | RCC_HB2Periph_GPIOF ); }while(0)
 
 RV_STATIC_INLINE void funPinMode(u32 pin, GPIOMode_TypeDef mode, GPIOSpeed_TypeDef speed)
 {
@@ -991,13 +991,13 @@ RV_STATIC_INLINE void funPinAF(u32 pin, u32 af)
 }
 
 #else
-#define funGpioInitAll() { RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD ); }
-#define funPinMode( pin, mode ) { GpioOf(pin)->CFGLR = (GpioOf(pin)->CFGLR & (~(0xf<<(4*((pin)&0xf))))) | ((mode)<<(4*((pin)&0xf))); }
+#define funGpioInitAll() do{ RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD ); }while(0)
+#define funPinMode( pin, mode ) do{ GpioOf(pin)->CFGLR = (GpioOf(pin)->CFGLR & (~(0xf<<(4*((pin)&0xf))))) | ((mode)<<(4*((pin)&0xf))); }while(0)
 #endif
 
-#define funGpioInitA() { RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA ); }
-#define funGpioInitC() { RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOC ); }
-#define funGpioInitD() { RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOD ); }
+#define funGpioInitA() do{ RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOA ); }while(0)
+#define funGpioInitC() do{ RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOC ); }while(0)
+#define funGpioInitD() do{ RCC->APB2PCENR |= ( RCC_APB2Periph_AFIO | RCC_APB2Periph_GPIOD ); }while(0)
 #define funDigitalRead( pin ) ((int)((GpioOf(pin)->INDR >> ((pin)&0xf)) & 1))
 #endif
 
